@@ -9,8 +9,10 @@ from telethon import connection, events, functions
 from telethon import functions, types
 from array import *
 
-# import main
+import quotex_controller
 
+
+quotex = quotex_controller.QuotexAutomate()
 
 config = configparser.ConfigParser()
 config.read("config.ini", encoding="utf-8")
@@ -51,7 +53,9 @@ def get_number_of_listening_chats():
 @client.on(events.NewMessage(get_listening_chat_names()))
 async def my_event_handler(event):
     direction = 'XXX'
-    time = 0
+    bet_time = 0
+    chat_name = ''
+    currency = ''
     print(event.message.to_dict()['message'])
     if len(event.message.to_dict()['message'].split()) != 3:
         print("Сообщение не распознано")
@@ -62,21 +66,16 @@ async def my_event_handler(event):
         elif word in 'вниз' and direction == 'XXX':
             direction = 'вниз'
         elif word.isdigit():
-            time = int(word)
+            bet_time = int(word)
         elif 'минут' in word:
             continue
         else:
             print("Сообщение не распознано")
             return 0
-    if direction != 'XXX' and time > 0:
-        print(f"Я распознал это как ставку {direction} на {time} мин")
-        try:
-            if main.ready_for_work:
-                main.binarium.make_bet(direction, time)
-        except Exception:
-            print('ready_for_work не найден, ставка не сделана')
-        print("trying to find currency...")
-        print(await find_last_currency('Test Signals'))
+    if direction != 'XXX' and bet_time > 0:
+        currency = await find_last_currency(event.message.peer_id.channel_id)
+        print(f"Я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре")
+        quotex.make_bet(direction, bet_time, currency)
 
 
 def find_last_currency_old(chat_name):
@@ -109,7 +108,11 @@ async def find_last_currency(chat_name):
                 for check_word in config["General"]["default_currency"].split():
                     if word == check_word:
                         number_of_counted_words += 1
-                        found_currency += word
+                        if found_currency != '':
+                            found_currency += '/'
+                            found_currency += word
+                        else:
+                            found_currency += word
             if number_of_counted_words == 2:
                 return found_currency
         except Exception:
@@ -216,21 +219,20 @@ async def a_get_messages_from_users(chat_name):
         json.dump(output, outfile, indent=4, ensure_ascii=False)
 
 
-async def a_main():
-    tasks = [
-        # async_func(),
-        a_get_messages_from_users('Test Signals')
-    ]
-    await asyncio.gather(*tasks)
+# async def a_main():
+    # tasks = [
+    #     # async_func(),
+    #     # a_get_messages_from_users('Test Signals')
+    # ]
+    # await asyncio.gather(*tasks)
 
 
-def main():
-    with open('data.txt', 'w', encoding="utf-8") as outfile:
-        json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
-    print("telegram_controller запущен")
+# def main():
+#     # with open('data.txt', 'w', encoding="utf-8") as outfile:
+#     #     json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
+#     print("telegram_controller запущен")
 
 
-main()
+# main()
 # with client:
 #     client.loop.run_until_complete(a_main())
-client.run_until_disconnected()

@@ -5,8 +5,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-# import telegram_controller
-import quotex_controller
+import telegram_controller
 
 
 class BinariumAutomate:
@@ -32,6 +31,7 @@ class BinariumAutomate:
         self.browser.find_element(By.XPATH, "/html/body/app-client/div/ng-component/mat-sidenav-container/mat-sidenav"
                                             "-content/div[5]/app-start-sidebar/div/div["
                                             "2]/app-auth-form/div/div/form/button").click()
+        print("Login success")
 
     def make_bet(self, direction, time):
         print(f"Я делаю ставку {direction} на {time} мин")
@@ -43,10 +43,6 @@ if __name__ == '__main__':
     # ready_for_work = True
     # print(f"Готов к работе")
     # telegram_controller.client.run_until_disconnected()
-    quotex = quotex_controller.QuotexAutomate()
-    quotex.login(quotex.logins["account_1"]["login"], quotex.logins["account_1"]["password"])
-    time.sleep(5)
-    quotex.select_bet_time(3)
-    quotex.select_bet_time(5)
+    telegram_controller.client.run_until_disconnected()
 
 
