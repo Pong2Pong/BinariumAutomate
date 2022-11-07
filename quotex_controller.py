@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class QuotexAutomate:
     bet_failed = False
+
     def __init__(self):
         self.service = Service(executable_path=ChromeDriverManager().install())
 
@@ -25,7 +26,7 @@ class QuotexAutomate:
 
     def exit(self):
         print("Выхожу из приложения")
-        self.driver.quit()
+        # self.driver.quit()
 
     def login(self, email, password):
         self.driver.get("https://broker-qx.com/ru/sign-in/modal/")
@@ -122,6 +123,7 @@ class QuotexAutomate:
                 EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[1]/div/div[2]/div[1]/div[1]/div/div/div/div[2]/div/div/div[2]/div[1]')))
             elem.click()
+            print(f"    Выбрана валютная пара {currency_to_select}")
         except:
             print("Не могу найти валютную пару, ставка не сделана ", currency_to_select)
             self.bet_failed = True
@@ -137,8 +139,15 @@ class QuotexAutomate:
                 EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[2]/div[1]/div/div[6]/div[1]/button')))
             elem.click()
+
         if direction == 'вниз':
             elem = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[2]/div[1]/div/div[6]/div[5]/button')))
             elem.click()
+        print("        Ставка сделана")
+
+    def get_currency(self):
+        elem = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[1]/div/div[2]/div[1]/div[1]/div/div/div/div[1]/input')))

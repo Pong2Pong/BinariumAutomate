@@ -1,3 +1,4 @@
+import asyncio
 import time
 import configparser
 from selenium import webdriver
@@ -36,13 +37,16 @@ class BinariumAutomate:
     def make_bet(self, direction, time):
         print(f"Я делаю ставку {direction} на {time} мин")
 
+# async def a_main():
+#     tasks = []
+#     for chat in telegram_controller.get_listening_chat_names():
+#         tasks.append(telegram_controller.a_get_chat_history_bets(chat))
+#     await asyncio.gather(*tasks)
+# with telegram_controller.client:
+#     telegram_controller.client.loop.run_until_complete(a_main())
+
 
 if __name__ == '__main__':
-    # binarium = BinariumAutomate()
-    # binarium.login('sergei.khatiushin@yandex.ru', 'S291001s')
-    # ready_for_work = True
-    # print(f"Готов к работе")
-    # telegram_controller.client.run_until_disconnected()
     telegram_controller.client.run_until_disconnected()
 
 

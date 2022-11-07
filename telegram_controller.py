@@ -2,17 +2,17 @@ import configparser
 import json
 import asyncio
 import re
+import time
+
 from telethon.client import messages
 from telethon.errors import SessionPasswordNeededError
 from telethon.sync import TelegramClient
 from telethon import connection, events, functions
 from telethon import functions, types
 from array import *
+from quotex_controller import QuotexAutomate
 
-import quotex_controller
-
-
-quotex = quotex_controller.QuotexAutomate()
+quotex = QuotexAutomate()
 
 config = configparser.ConfigParser()
 config.read("config.ini", encoding="utf-8")
@@ -34,6 +34,15 @@ if not client.is_user_authorized():
         client.sign_in(password=input('Password: '))
 
 
+async def get_config_chat_position_by_name(chat_name):
+    num_of_chats = 1
+    while config.has_section(f"chat_{num_of_chats}"):
+        if config[f"chat_{num_of_chats}"]['name'] == chat_name:
+            return num_of_chats
+        else:
+            num_of_chats += 1
+
+
 def get_listening_chat_names():
     num_of_chats = 1
     chat_names = []
@@ -50,53 +59,68 @@ def get_number_of_listening_chats():
     return num_of_chats - 1
 
 
+def get_chat_name_by_id(chat_id):
+    result = []
+    for chat in client.iter_dialogs():
+        if chat.id == chat_id:
+            result.append({chat.name: chat.id})
+    return result
+
+
+async def a_get_chat_name_by_id(chat_id):
+    async for chat in client.iter_dialogs():
+        if chat.id == chat_id:
+            return chat.name
+
+
+
 @client.on(events.NewMessage(get_listening_chat_names()))
 async def my_event_handler(event):
     direction = 'XXX'
     bet_time = 0
-    chat_name = ''
-    currency = ''
+    bet_time_multiplier = 0
+    chat_language = ""
+    chat_config_position = await get_config_chat_position_by_name(event.chat.title)
     print(event.message.to_dict()['message'])
-    if len(event.message.to_dict()['message'].split()) != 3:
-        print("Сообщение не распознано")
-        return 0
-    for word in event.message.to_dict()['message'].lower().split():
-        if word in 'вверх' and direction == 'XXX':
-            direction = 'вверх'
-        elif word in 'вниз' and direction == 'XXX':
-            direction = 'вниз'
-        elif word.isdigit():
+
+    try:
+        if config.has_section(f"chat_{chat_config_position}"):
+            config_chat_section = f"chat_{chat_config_position}"
+            if config.has_option(config_chat_section, "language"):
+                chat_language = config[config_chat_section]["language"]
+            else:
+                print("Не установлен язык чата, выбран по умолчанию")
+                chat_language = "Russian"
+    except:
+        print("Не установлен язык чата, выбран по умолчанию")
+        chat_language = "Russian"
+
+    bet_words_up = config[chat_language]["default_direction_up"].split()
+    bet_words_down = config[chat_language]["default_direction_down"].split()
+    bet_words_minute = config[chat_language]["default_minute"].split()
+
+    for word in re.findall(r'\w+', event.message.message.lower()):
+        for check_word in bet_words_up:
+            if word == check_word and direction == 'XXX':
+                direction = 'вверх'
+        for check_word in bet_words_down:
+            if word == check_word and direction == 'XXX':
+                direction = 'вниз'
+        if word.isdigit() and bet_time == 0:
             bet_time = int(word)
-        elif 'минут' in word:
-            continue
-        else:
-            print("Сообщение не распознано")
-            return 0
-    if direction != 'XXX' and bet_time > 0:
+        for check_word in bet_words_minute:
+            if word == check_word:
+                bet_time_multiplier = 1
+                if word == "минуту":
+                    bet_time = 1
+
+    print(len(event.message.to_dict()['message'].lower().split()), int(config[f"chat_{chat_config_position}"]["max_signal_length"]))
+    if direction != 'XXX' and bet_time * bet_time_multiplier > 0 and \
+            len(event.message.to_dict()['message'].lower().split()) < \
+            int(config[f"chat_{chat_config_position}"]["max_signal_length"]):
         currency = await find_last_currency(event.message.peer_id.channel_id)
-        print(f"Я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре")
+        print(f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
         quotex.make_bet(direction, bet_time, currency)
-
-
-def find_last_currency_old(chat_name):
-    number_of_counted_words = 0
-    output = []
-    for mes in client.iter_messages(chat_name):
-        try:
-            # print(mes.message, re.split(r'\w+', mes.message.heigher()))
-            for word in re.findall(r'\w+', mes.message.upper()):
-                for check_word in config["General"]["default_currency"].split():
-                    if word == check_word:
-                        number_of_counted_words += 1
-            if number_of_counted_words == 2:
-                output.append([mes.message, mes.id])
-                print("НАШЕЛ СТРОЧКУ ---> ", mes.message)
-            number_of_counted_words = 0
-        except Exception:
-            print("Exception on ",mes)
-    print(output)
-    with open(f'find_last_currency_of_{chat_name}.txt', 'w', encoding="utf-8") as outfile:
-        json.dump(output, outfile, indent=4, ensure_ascii=False)
 
 
 async def find_last_currency(chat_name):
@@ -134,47 +158,39 @@ def get_chat_id(chat_name):
             return chat.id
 
 
-def get_chat_history_bets(chat_name):
+async def a_get_chat_history_bets(chat_name):
+    number_of_read_messages = 0
     number_of_counted_words = 0
     number_of_founded_numeric = 0
     output = []
-    for mes in client.iter_messages(chat_name):
+    check_words = config["General"]["default_bet_words"].split()
+    print(client.iter_messages(chat_name))
+    async for mes in client.iter_messages(chat_name):
+
+        number_of_read_messages += 1
+        if number_of_read_messages % 100 == 0:
+            print(f"{chat_name} Прочтено {number_of_read_messages} сообщений, среди них ставок - {len(output)}")
+
         try:
-            for word in mes.to_dict()['message'].lower().split():
+            for word in mes.message.lower().split():
                 if word.isdigit():
                     number_of_counted_words += 1
                     number_of_founded_numeric += 1
                 else:
-                    for check_word in config["General"]["default_bet_words"].split():
-                        if word == check_word:
+                    for check_word in check_words:
+                        if check_word in word:
                             number_of_counted_words += 1
-            if number_of_counted_words == 3 and number_of_founded_numeric == 1:
-                output.append(mes.message, mes)
-                print(mes.message)
-            number_of_counted_words = 0
-            number_of_founded_numeric = 0
-        except Exception:
-            print(mes)
-    with open(f'chat_history_bets_log_{chat_name}.txt', 'w', encoding="utf-8") as outfile:
-        json.dump(output, outfile, indent=4, ensure_ascii=False)
+        except:
+            print(f"Exception Сообщение {mes} не было разобрано")
 
-
-async def a_get_chat_history_bets(chat_name):
-    number_of_counted_words = 0
-    number_of_founded_numeric = 0
-    for mes in client.iter_messages(chat_name):
-        for word in mes.to_dict()['message'].lower().split():
-            if word.isdigit():
-                number_of_counted_words += 1
-                number_of_founded_numeric += 1
-            else:
-                for check_word in config["General"]["default_bet_words"].split():
-                    if word == check_word:
-                        number_of_counted_words += 1
         if number_of_counted_words == 3 and number_of_founded_numeric == 1:
-            print(mes.to_dict()['message'])
+            output.append(mes.message)
         number_of_counted_words = 0
         number_of_founded_numeric = 0
+
+    with open(f'Logs\\a_chat_history_bets_log___{chat_name}.txt', 'w', encoding="utf-8") as outfile:
+        json.dump(output, outfile, indent=4, ensure_ascii=False)
+    print(f"----{chat_name}----Итого было всего прочтено {number_of_read_messages} сообщений")
 
 
 async def a_get_messages_from_users(chat_name):
@@ -215,8 +231,14 @@ async def a_get_messages_from_users(chat_name):
                   output)
     print(f"----{chat_name}----Итого было всего прочтено {read_messages} сообщений, итоговые показатели: ",
           output)
-    with open(f'chat_history_bets_log_{chat_name}.txt', 'w', encoding="utf-8") as outfile:
+    with open(f'Logs\\chat_history_bets_log_{chat_name}.txt', 'w', encoding="utf-8") as outfile:
         json.dump(output, outfile, indent=4, ensure_ascii=False)
+
+
+def dump_all_chats():
+    with open('data.txt', 'w', encoding="utf-8") as outfile:
+        json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
+    print("telegram_controller запущен")
 
 
 # async def a_main():
@@ -228,11 +250,13 @@ async def a_get_messages_from_users(chat_name):
 
 
 # def main():
-#     # with open('data.txt', 'w', encoding="utf-8") as outfile:
-#     #     json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
+#     with open('data.txt', 'w', encoding="utf-8") as outfile:
+#         json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
 #     print("telegram_controller запущен")
 
 
 # main()
 # with client:
 #     client.loop.run_until_complete(a_main())
+
+print("Telegram_controller запущен")
