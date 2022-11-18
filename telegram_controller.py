@@ -1,4 +1,5 @@
 import configparser
+import datetime
 import json
 import asyncio
 import re
@@ -11,6 +12,7 @@ from telethon import connection, events, functions
 from telethon import functions, types
 from array import *
 from quotex_controller import QuotexAutomate
+from stats import BetStat
 
 quotex = QuotexAutomate()
 
@@ -81,6 +83,7 @@ async def my_event_handler(event):
     bet_time_multiplier = 0
     chat_language = ""
     chat_config_position = await get_config_chat_position_by_name(event.chat.title)
+    signal_time = event.message.date + datetime.timedelta(hours=3)
     print(event.message.to_dict()['message'])
 
     try:
@@ -114,13 +117,17 @@ async def my_event_handler(event):
                 if word == "минуту":
                     bet_time = 1
 
-    print(len(event.message.to_dict()['message'].lower().split()), int(config[f"chat_{chat_config_position}"]["max_signal_length"]))
     if direction != 'XXX' and bet_time * bet_time_multiplier > 0 and \
             len(event.message.to_dict()['message'].lower().split()) < \
             int(config[f"chat_{chat_config_position}"]["max_signal_length"]):
         currency = await find_last_currency(event.message.peer_id.channel_id)
-        print(f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
-        quotex.make_bet(direction, bet_time, currency)
+        print(f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
+        try:
+            quotex.make_bet(direction, bet_time, currency)
+            bet = BetStat(direction, bet_time, signal_time)
+        except:
+            pass
+        await client.send_message('Log', f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
 
 
 async def find_last_currency(chat_name):

@@ -8,6 +8,8 @@ from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 
+import stats
+
 
 class QuotexAutomate:
     bet_failed = False
@@ -23,6 +25,7 @@ class QuotexAutomate:
         self.logins.read("logins.ini", encoding="utf-8")
         self.login(self.logins["account_1"]["login"], self.logins["account_1"]["password"])
         self.choose_training_cash()
+        self.get_currency_open_close()
 
     def exit(self):
         print("Выхожу из приложения")
@@ -147,7 +150,24 @@ class QuotexAutomate:
             elem.click()
         print("        Ставка сделана")
 
-    def get_currency(self):
+    @staticmethod
+    def get_currency_open_close(self):
         elem = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[1]/div/div[2]/div[1]/div[1]/div/div/div/div[1]/input')))
+                (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]')))
+        elem.click()
+
+        open_currency = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]/ul/li[3]/div[2]')))
+        print(open_currency.text)
+
+        close_currency = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div[2]')))
+        print(close_currency.text)
+
+        return open_currency, close_currency
+        # elem = self.driver.find_element(By.XPATH, '//*[@id="root"]/div/div[1]/main/div[2]/div[2]/div[2]')
+        # elem.click()
+
