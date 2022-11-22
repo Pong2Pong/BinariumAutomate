@@ -1,13 +1,10 @@
-import asyncio
-import time
-import configparser
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-
+import configparser
+import time
 import telegram_controller
-
 
 class BinariumAutomate:
     ready_for_work = False
@@ -36,14 +33,6 @@ class BinariumAutomate:
 
     def make_bet(self, direction, time):
         print(f"Я делаю ставку {direction} на {time} мин")
-
-# async def a_main():
-#     tasks = []
-#     for chat in telegram_controller.get_listening_chat_names():
-#         tasks.append(telegram_controller.a_get_chat_history_bets(chat))
-#     await asyncio.gather(*tasks)
-# with telegram_controller.client:
-#     telegram_controller.client.loop.run_until_complete(a_main())
 
 
 if __name__ == '__main__':

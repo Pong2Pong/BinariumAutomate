@@ -8,24 +8,20 @@ from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 
-import stats
-
 
 class QuotexAutomate:
     bet_failed = False
+    QA = []
 
     def __init__(self):
+        self.QA.append(self)
         self.service = Service(executable_path=ChromeDriverManager().install())
-
         self.driver = webdriver.Chrome(service=self.service)
-
         self.driver.maximize_window()
-
         self.logins = configparser.ConfigParser()
         self.logins.read("logins.ini", encoding="utf-8")
         self.login(self.logins["account_1"]["login"], self.logins["account_1"]["password"])
         self.choose_training_cash()
-        self.get_currency_open_close()
 
     def exit(self):
         print("Выхожу из приложения")
@@ -126,7 +122,7 @@ class QuotexAutomate:
                 EC.presence_of_element_located(
                     (By.XPATH, '//*[@id="root"]/div/div[1]/main/div[1]/div/div[2]/div[1]/div[1]/div/div/div/div[2]/div/div/div[2]/div[1]')))
             elem.click()
-            print(f"    Выбрана валютная пара {currency_to_select}")
+            # print(f"    Выбрана валютная пара {currency_to_select}")
         except:
             print("Не могу найти валютную пару, ставка не сделана ", currency_to_select)
             self.bet_failed = True
@@ -150,7 +146,6 @@ class QuotexAutomate:
             elem.click()
         print("        Ставка сделана")
 
-    @staticmethod
     def get_currency_open_close(self):
         elem = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
@@ -167,7 +162,7 @@ class QuotexAutomate:
                 (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div[2]')))
         print(close_currency.text)
 
-        return open_currency, close_currency
+        return open_currency.text, close_currency.text
         # elem = self.driver.find_element(By.XPATH, '//*[@id="root"]/div/div[1]/main/div[2]/div[2]/div[2]')
         # elem.click()
 

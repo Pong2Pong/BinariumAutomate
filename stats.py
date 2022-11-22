@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from quotex_controller import QuotexAutomate
+# from quotex_controller import QuotexAutomate
 
 
 class BetStat:
@@ -19,20 +19,25 @@ class BetStat:
         self.result = "result"
         BetStat.bets.append(self)
         self.loop.create_task(self.wait_for_result(bet_time))
-        print("Created BetStat")
 
     def print_to_console(self):
-        print(self.direction, self.start_time, self.bet_time, self.end_time, self.currency_on_start, self.currency_on_end)
-
-    @staticmethod
-    def printHello():
-        print("Hello")
+        print("    Stat:",self.result ,self.direction, self.start_time, self.bet_time, self.end_time, self.currency_on_start, self.currency_on_end)
 
     async def wait_for_result(self, bet_time):
-        await asyncio.sleep(int(bet_time))
-        self.currency_on_start, self.currency_on_end = QuotexAutomate.get_currency_open_close()
-        QuotexAutomate.get_currency_open_close()
+        from quotex_controller import QuotexAutomate
+        await asyncio.sleep(int(bet_time*60))
+        self.currency_on_start, self.currency_on_end = QuotexAutomate.get_currency_open_close(QuotexAutomate.QA[0])
+        self.analyze_result()
         self.print_to_console()
 
-
-BetStat.printHello()
+    def analyze_result(self):
+        if self.direction == "вниз":
+            if self.currency_on_start > self.currency_on_end:
+                self.result = "Выйгрыш"
+            else:
+                self.result = "Проигрыш"
+        if self.direction == "вверх":
+            if self.currency_on_start < self.currency_on_end:
+                self.result = "Выйгрыш"
+            else:
+                self.result = "Проигрыш"

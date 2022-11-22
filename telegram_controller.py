@@ -11,6 +11,8 @@ from telethon.sync import TelegramClient
 from telethon import connection, events, functions
 from telethon import functions, types
 from array import *
+
+import quotex_controller
 from quotex_controller import QuotexAutomate
 from stats import BetStat
 
@@ -28,6 +30,8 @@ phone = config['Telegram']['phone']
 client = TelegramClient(username, 10924741, api_hash)
 client.connect()
 client.start()
+
+
 
 if not client.is_user_authorized():
     try:
@@ -49,7 +53,10 @@ def get_listening_chat_names():
     num_of_chats = 1
     chat_names = []
     while config.has_section(f"chat_{num_of_chats}"):
-        chat_names.append(config[f"chat_{num_of_chats}"]['name'])
+        if config[f"chat_{num_of_chats}"]['name'] in [chat.name for chat in client.iter_dialogs()]:
+            chat_names.append(config[f"chat_{num_of_chats}"]['name'])
+        else:
+            print("Канал ", config[f"chat_{num_of_chats}"]['name'], "переименован")
         num_of_chats += 1
     return chat_names
 
@@ -73,7 +80,6 @@ async def a_get_chat_name_by_id(chat_id):
     async for chat in client.iter_dialogs():
         if chat.id == chat_id:
             return chat.name
-
 
 
 @client.on(events.NewMessage(get_listening_chat_names()))
@@ -122,11 +128,8 @@ async def my_event_handler(event):
             int(config[f"chat_{chat_config_position}"]["max_signal_length"]):
         currency = await find_last_currency(event.message.peer_id.channel_id)
         print(f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
-        try:
-            quotex.make_bet(direction, bet_time, currency)
-            bet = BetStat(direction, bet_time, signal_time)
-        except:
-            pass
+        quotex.make_bet(direction, bet_time, currency)
+        bet = BetStat(direction, bet_time, signal_time)
         await client.send_message('Log', f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
 
 
@@ -245,7 +248,7 @@ async def a_get_messages_from_users(chat_name):
 def dump_all_chats():
     with open('data.txt', 'w', encoding="utf-8") as outfile:
         json.dump(get_all_chats_id(), outfile, indent=4, ensure_ascii=False)
-    print("telegram_controller запущен")
+    # print("telegram_controller запущен")
 
 
 # async def a_main():
@@ -267,3 +270,4 @@ def dump_all_chats():
 #     client.loop.run_until_complete(a_main())
 
 print("Telegram_controller запущен")
+dump_all_chats()
