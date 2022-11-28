@@ -28,10 +28,19 @@ class QuotexAutomate:
         # self.driver.quit()
 
     def login(self, email, password):
-        self.driver.get("https://broker-qx.com/ru/sign-in/modal/")
+        self.driver.get("https://market-quotex.net/ru/sign-up/modal")
         try:
             element = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/main/form/div[1]/label/input"))
+                EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/main/div[1]/nav/a[1]"))
+            )
+        except:
+            print("Не могу найти кнопку выбора входа")
+            self.exit()
+        else:
+            element.click()
+        try:
+            element = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "email"))
             )
         except:
             print("Не могу найти поле для ввода логина ")
@@ -40,7 +49,7 @@ class QuotexAutomate:
             element.send_keys(email)
         try:
             element = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/main/form/div[2]/label/input"))
+                EC.presence_of_element_located((By.NAME, "password"))
             )
         except:
             print("Не могу найти поле для ввода пароля ")

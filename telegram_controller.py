@@ -129,7 +129,7 @@ async def my_event_handler(event):
         currency = await find_last_currency(event.message.peer_id.channel_id)
         print(f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
         quotex.make_bet(direction, bet_time, currency)
-        bet = BetStat(direction, bet_time, signal_time)
+        bet = BetStat(direction, bet_time, signal_time, event.chat.title)
         await client.send_message('Log', f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
 
 
