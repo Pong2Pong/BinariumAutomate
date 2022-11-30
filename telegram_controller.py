@@ -130,7 +130,12 @@ async def my_event_handler(event):
         print(f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
         quotex.make_bet(direction, bet_time, currency)
         bet = BetStat(direction, bet_time, signal_time, event.chat.title)
-        await client.send_message('Log', f"На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре {time.ctime()}")
+
+
+async def send_log(result, chat_name, direction, bet_time):
+    await client.send_message('Log', f"{result} На канале {chat_name} {time.ctime()}")
+    with open(f'Logs/BetLogs/{datetime.date.today()}', 'a', encoding="utf-8") as outfile:
+        json.dump(f"{result} На канале {chat_name} я распознал это как ставку {direction} на {bet_time} мин в {time.ctime()}", outfile, indent=4, ensure_ascii=False)
 
 
 async def find_last_currency(chat_name):

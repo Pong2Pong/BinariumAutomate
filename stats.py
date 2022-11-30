@@ -31,6 +31,7 @@ class BetStat:
         self.currency_on_start, self.currency_on_end = QuotexAutomate.get_currency_open_close(QuotexAutomate.QA[0])
         await self.analyze_result()
         self.print_to_console()
+        await telegram_controller.send_log(self.result, self.chat_name, self.chat_name, self.bet_time)
 
     async def analyze_result(self):
         config = configparser.ConfigParser()
