@@ -16,7 +16,6 @@ import quotex_controller
 from quotex_controller import QuotexAutomate
 from stats import BetStat
 
-quotex = QuotexAutomate()
 
 config = configparser.ConfigParser()
 config.read("config.ini", encoding="utf-8")
@@ -30,8 +29,6 @@ phone = config['Telegram']['phone']
 client = TelegramClient(username, 10924741, api_hash)
 client.connect()
 client.start()
-
-
 
 if not client.is_user_authorized():
     try:
@@ -47,6 +44,48 @@ async def get_config_chat_position_by_name(chat_name):
             return num_of_chats
         else:
             num_of_chats += 1
+
+
+def check_chat_names_if_changed():
+    for chat in client.iter_dialogs(folder=1):
+        found = False
+        num_of_chats = 1
+        while config.has_section(f"chat_{num_of_chats}"):
+            if chat.id == int(config[f"chat_{num_of_chats}"]['id']):
+                found = True
+                if chat.name != config[f"chat_{num_of_chats}"]['name']:
+                    with open('config.ini', 'w', encoding="utf-8") as configfile:
+                        config.set(f"chat_{num_of_chats}", "name", chat.name)
+                        config.write(configfile)
+                    print(f"Изменил имя у чата {chat.name}")
+                break
+            num_of_chats += 1
+        if not found:
+            add_chat_in_config(chat)
+
+
+
+async def get_config_chat_position_by_id(chat_id):
+    num_of_chats = 1
+    while config.has_section(f"chat_{num_of_chats}"):
+        if config[f"chat_{num_of_chats}"]['id'] == chat_id:
+            return num_of_chats
+        else:
+            num_of_chats += 1
+
+
+def add_chat_in_config(chat):
+    num_of_chat = get_number_of_listening_chats()+1
+    config.add_section(f"chat_{num_of_chat}")
+    config[f"chat_{num_of_chat}"]["name"] = str(chat.name)
+    config[f"chat_{num_of_chat}"]["id"] = str(chat.id)
+    config[f"chat_{num_of_chat}"]["language"] = 'default'
+    config[f"chat_{num_of_chat}"]["max_signal_length"] = str(30)
+    config[f"chat_{num_of_chat}"]["right_signals"] = str(0)
+    config[f"chat_{num_of_chat}"]["wrong_signals"] = str(0)
+    with open('config.ini', 'w', encoding="utf-8") as configfile:
+        config.write(configfile)
+    print(f"Добавил чат {chat.name} в конфиг файл")
 
 
 def get_listening_chat_names():
@@ -82,7 +121,15 @@ async def a_get_chat_name_by_id(chat_id):
             return chat.name
 
 
-@client.on(events.NewMessage(get_listening_chat_names()))
+def get_listening_chat_names_from_archive():
+    num_of_chats = 1
+    chat_names = []
+    for chat in client.iter_dialogs(folder=1):
+        chat_names.append(chat.name)
+    return chat_names
+
+
+@client.on(events.NewMessage(get_listening_chat_names_from_archive()))
 async def my_event_handler(event):
     direction = 'XXX'
     bet_time = 0
@@ -96,10 +143,11 @@ async def my_event_handler(event):
         if config.has_section(f"chat_{chat_config_position}"):
             config_chat_section = f"chat_{chat_config_position}"
             if config.has_option(config_chat_section, "language"):
-                chat_language = config[config_chat_section]["language"]
-            else:
-                print("Не установлен язык чата, выбран по умолчанию")
-                chat_language = "Russian"
+                if config[config_chat_section]["language"].lower() != "default":
+                    chat_language = config[config_chat_section]["language"]
+                else:
+                    print("Не установлен язык чата, выбран по умолчанию")
+                    chat_language = "Russian"
     except:
         print("Не установлен язык чата, выбран по умолчанию")
         chat_language = "Russian"
@@ -127,15 +175,22 @@ async def my_event_handler(event):
             len(event.message.to_dict()['message'].lower().split()) < \
             int(config[f"chat_{chat_config_position}"]["max_signal_length"]):
         currency = await find_last_currency(event.message.peer_id.channel_id)
-        print(f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
-        quotex.make_bet(direction, bet_time, currency)
-        bet = BetStat(direction, bet_time, signal_time, event.chat.title)
+        print(
+            f"В {signal_time} На канале {event.chat.title} я распознал это как ставку {direction} на {bet_time} мин на {currency} валютной паре ")
+        bet = BetStat(direction, bet_time, signal_time, event.chat.title, currency)
 
 
-async def send_log(result, chat_name, direction, bet_time):
+async def send_log(result, chat_name, direction, bet_time, delay, open_currency, close_currency):
+    dump_history = []
     await client.send_message('Log', f"{result} На канале {chat_name} {time.ctime()}")
-    with open(f'Logs/BetLogs/{datetime.date.today()}', 'a', encoding="utf-8") as outfile:
-        json.dump(f"{result} На канале {chat_name} я распознал это как ставку {direction} на {bet_time} мин в {time.ctime()}", outfile, indent=4, ensure_ascii=False)
+    try:
+        with open(f'Logs/BetLogs/{datetime.date.today()}.json', 'r', encoding="utf-8") as outfile:
+            dump_history = json.load(outfile)
+    except:
+        pass
+    dump_history.append(f"{result} На канале {chat_name} с задержкой {delay} {direction} на {bet_time} мин в {time.ctime()}, начальная {open_currency}, конечная {close_currency}")
+    with open(f'Logs/BetLogs/{datetime.date.today()}.json', 'w', encoding="utf-8") as outfile:
+        json.dump(dump_history, outfile, indent=4, ensure_ascii=False)
 
 
 async def find_last_currency(chat_name):
@@ -242,8 +297,9 @@ async def a_get_messages_from_users(chat_name):
                 read_messages += 1
 
         if read_messages % 100 == 0:
-            print(f"{chat_name} Прочтено {read_messages} сообщений, не разобрано {unread_messages} текущие показатели: ",
-                  output)
+            print(
+                f"{chat_name} Прочтено {read_messages} сообщений, не разобрано {unread_messages} текущие показатели: ",
+                output)
     print(f"----{chat_name}----Итого было всего прочтено {read_messages} сообщений, итоговые показатели: ",
           output)
     with open(f'Logs\\chat_history_bets_log_{chat_name}.txt', 'w', encoding="utf-8") as outfile:
@@ -257,11 +313,8 @@ def dump_all_chats():
 
 
 # async def a_main():
-    # tasks = [
-    #     # async_func(),
-    #     # a_get_messages_from_users('Test Signals')
-    # ]
-    # await asyncio.gather(*tasks)
+#     task1 = asyncio.create_task(check_chat_names_if_changed())
+#     await task1
 
 
 # def main():
@@ -274,5 +327,6 @@ def dump_all_chats():
 # with client:
 #     client.loop.run_until_complete(a_main())
 
+check_chat_names_if_changed()
 print("Telegram_controller запущен")
-dump_all_chats()
+
