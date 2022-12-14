@@ -156,16 +156,16 @@ class QuotexAutomate:
         print("        Ставка сделана")
 
     def get_currency_open_close(self):
-        time.sleep(5)
+        time.sleep(3)
         elem = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]')))
         elem.click()
-
+        time.sleep(1)
         open_currency = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]/ul/li[3]/div[2]')))
-
+        time.sleep(1)
         close_currency = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, '/html/body/div/div/div[1]/main/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div[2]')))
