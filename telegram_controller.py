@@ -188,7 +188,7 @@ async def send_log(result, chat_name, direction, bet_time, delay, open_currency,
             dump_history = json.load(outfile)
     except:
         pass
-    dump_history.append(f"{result} На канале {chat_name} с задержкой {delay} {direction} на {bet_time} мин в {time.ctime()}, начальная {open_currency}, конечная {close_currency}")
+    dump_history.append(f"{result} На канале {chat_name} с задержкой {delay} {direction} на {bet_time} мин в {time.ctime()}, начальная {open_currency}, конечная {close_currency}/n")
     with open(f'Logs/BetLogs/{datetime.date.today()}.json', 'w', encoding="utf-8") as outfile:
         json.dump(dump_history, outfile, indent=4, ensure_ascii=False)
 
